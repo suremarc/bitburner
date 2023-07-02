@@ -1,0 +1,26 @@
+{
+  "name": "bitburner",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "scripts": {
+    "esbuild": "node build.mjs",
+    "esbuild:watch": "node build.mjs --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/suremarc/bitburner.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/suremarc/bitburner/issues"
+  },
+  "homepage": "https://github.com/suremarc/bitburner#readme",
+  "devDependencies": {
+    "esbuild": "^0.18.11",
+    "prettier": "^2.8.8",
+    "ts-loader": "^9.4.4",
+    "typescript": "^5.1.6"
+  }
+}
