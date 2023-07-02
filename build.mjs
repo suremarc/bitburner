@@ -1,6 +1,7 @@
 import { context } from 'esbuild';
 import { WebSocketServer } from 'ws';
 import { readFile, readdir } from 'fs/promises';
+import { basename } from 'path';
 
 const server = new WebSocketServer({
     port: 12525,
@@ -14,13 +15,13 @@ let syncPlugin = {
     setup(build) {
         build.onEnd(async result => {
             for (const client of server.clients) {
-                await Promise.all(await Promise.all(readdir('./dist').map(async path => {
+                await Promise.all(await Promise.all((await readdir('./dist')).map(async path => {
                     client.send(JSON.stringify({
                         jsonrpc: "2.0",
                         method: "pushFile",
                         params: {
                             server: "home",
-                            filename: "main.js",
+                            filename: basename(path),
                             content: await readFile(path, 'utf8')
                         }
                     }))

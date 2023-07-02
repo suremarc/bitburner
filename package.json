@@ -24,5 +24,8 @@
     "ts-loader": "^9.4.4",
     "typescript": "^5.1.6",
     "ws": "^8.13.0"
+  },
+  "dependencies": {
+    "yalps": "^0.5.5"
   }
 }
