@@ -1,6 +1,8 @@
 import { context } from 'esbuild';
 import { WebSocketServer } from 'ws';
 import { readFile, readdir } from 'fs/promises';
+import { glob } from 'glob';
+import { basename } from 'path';
 
 const server = new WebSocketServer({
     port: 12525,
@@ -14,14 +16,14 @@ let syncPlugin = {
     setup(build) {
         build.onEnd(async result => {
             for (const client of server.clients) {
-                await Promise.all(await Promise.all((await readdir(SCRIPT_DIR)).map(async path => {
+                await Promise.all(await Promise.all((await glob(`${SCRIPT_DIR}/**/*.js`)).map(async path => {
                     client.send(JSON.stringify({
                         jsonrpc: "2.0",
                         method: "pushFile",
                         params: {
                             server: "home",
-                            filename: path,
-                            content: await readFile(`${SCRIPT_DIR}/${path}`, 'utf8')
+                            filename: basename(path),
+                            content: await readFile(path, 'utf8')
                         }
                     }))
                 })))
@@ -33,7 +35,7 @@ let syncPlugin = {
 const WATCH = process.argv.includes('--watch');
 
 const ctx = await context({
-    entryPoints: ['./src/main.ts', './src/weaken.ts'],
+    entryPoints: ['./src/main.ts', './src/hgw/hgw.ts'],
     outdir: SCRIPT_DIR,
     minify: !WATCH,
     bundle: true,

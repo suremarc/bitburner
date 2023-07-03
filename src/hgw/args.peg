@@ -1,0 +1,14 @@
+command := cmd=weakenCmd $
+
+_ := '\s*'
+
+bool := literal = {'true' | 'false'}
+        .value = boolean { return this.literal === 'true'; }
+num := literal='[0-9]+'
+        .value = number { return parseInt(this.literal); }
+
+threadsFlag := {'--threads' | '-t'} _ threads=num
+infiniteFlag := {'--infinite' | '-i'} infinite=''
+
+weakenFlag := threadsFlag | infiniteFlag
+weakenCmd := 'w' flags={_ flag=weakenFlag}*

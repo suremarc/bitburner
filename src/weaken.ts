@@ -9,7 +9,7 @@ export async function main(ns: NS) {
         return;
     }
 
-    while (ns.getServerSecurityLevel(host) > minimumSecurityLevel) {
+    while (ns.getServerSecurityLevel(host) > ns.getServerMinSecurityLevel(host)) {
         const amountReduced = await ns.weaken(host, {
             threads: numThreads,
         });

@@ -6,25 +6,41 @@ export async function main(ns: NS) {
     ns.tprint(["INFO: Targets with root access:"].concat(targets).join('\n\t'))
 
     targets.forEach(host => {
-        ns.rm('prepare.js', host);
-        ns.scp(['weaken.js'], host);
+        for (const name of ['prepare.js', 'weaken.js']) {
+            ns.rm(name, host);
+        }
+
+        ns.scp(['hgw.js'], host);
     });
 
-    let states: State[] = targets.map(host => new StateIdle(ns, host));
+    let states = targets.map(host => new StateContext(new StateWeaken(ns, host)));
 
     ns.disableLog('sleep')
     while (await ns.sleep(100)) {
-        states = states.map(state => state.next());
-
-        if (states.filter(state => state instanceof StateErrored).length > 0) {
-            ns.tprintf("halting due to error")
-            break
+        for (const state of states) {
+            try {
+                state.advance();
+            } catch (err) {
+                state.state = null;
+            }
         }
 
         if (states.filter(state => !(state instanceof StateCompleted)).length == 0) {
             ns.tprint(`All processes are completed, tearing down`)
             break
         }
+    }
+}
+
+class StateContext {
+    state: State;
+
+    constructor(state: State) {
+        this.state = state;
+    }
+
+    advance() {
+        this.state = this.state.next();
     }
 }
 
@@ -40,41 +56,30 @@ abstract class State {
     abstract next(): State;
 }
 
-class StateIdle extends State {
-    next(): StateWeaken | StateErrored {
-        this.ns.killall(this.host);
-
-        try {
-            const numThreads = Math.floor(this.ns.getServerMaxRam(this.host) / this.ns.getScriptRam('weaken.js', this.host));
-            this.ns.tprint(`INFO: Spawning ${numThreads} threads for weaken on host ${this.host}`)
-            const pid = this.ns.exec('weaken.js', this.host, numThreads, numThreads);
-            if (!pid) {
-                throw "exec failed (possibly not enough ram)"
-            }
-
-            return new StateWeaken(this.ns, this.host, pid);
-        } catch (err) {
-            this.ns.tprintf("ERROR: couldn't run weaken.js: %s", err)
-            this.ns.killall(this.host);
-            return new StateErrored(this.ns, this.host, err)
-        }
-    }
-}
-
 class StateWeaken extends State {
     pid: number;
 
-    constructor(ns: NS, host: string, pid: number) {
+    constructor(ns: NS, host: string) {
         super(ns, host);
+
+        this.ns.killall(this.host);
+
+        ns.tprint(this.ns.getScriptRam('hgw.js', this.host))
+        const numThreads = Math.floor(this.ns.getServerMaxRam(this.host) / this.ns.getScriptRam('hgw.js', this.host));
+        this.ns.tprint(`INFO: Spawning ${numThreads} threads for weaken on host ${this.host}`)
+        const pid = this.ns.exec('hgw.js', this.host, numThreads, `w -t ${numThreads} -i`);
+        if (!pid) {
+            throw "exec failed (possibly not enough ram)"
+        }
+
         this.pid = pid;
     }
 
-    next(): StateWeaken | StateErrored | StateCompleted {
+    next(): StateWeaken | StateCompleted {
         const script = this.ns.getRunningScript(this.pid);
         if (!script) {
             if (this.ns.getServerSecurityLevel(this.host) > this.ns.getServerMinSecurityLevel(this.host)) {
-                this.ns.tprint("ERROR: weaken did not achieve target security level");
-                return new StateErrored(this.ns, this.host, "weaken did not achieve target security level");
+                throw "ERROR: weaken did not achieve target security level"
             }
 
             return new StateCompleted(this.ns, this.host);
@@ -84,16 +89,18 @@ class StateWeaken extends State {
     }
 }
 
-class StateErrored extends State {
-    error: any;
+class StateGrowWeaken extends State {
+    growPid: number;
+    weakenPid: number;
 
-    constructor(ns: NS, host: string, err: any) {
+    constructor(ns: NS, host: string, growPid: number, weakenPid: number) {
         super(ns, host);
-        this.error = err;
+        this.growPid = growPid;
+        this.weakenPid = weakenPid;
     }
 
-    next(): StateErrored {
-        return this
+    next(): State {
+        return new StateCompleted(this.ns, this.host)
     }
 }
 
@@ -110,6 +117,7 @@ function crack(ns: NS, host: string): boolean {
 
     try {
         ns.brutessh(host);
+        ns.ftpcrack(host);
     } catch (err) {
         ns.tprint(`ERROR: Couldn't open ports on host '${host}': ${err}`);
         return false;
