@@ -2,9 +2,7 @@ import { NS } from '../types/NetscriptDefinitions';
 import * as args from './args';
 
 export async function main(ns: NS) {
-    const argString = ns.args.join(' ');
-    ns.tprint(`INFO: ${argString}`);
-    const result = args.parse(argString);
+    const result = args.parse(ns.args.join(' '));
     if (result.errs.length > 0) {
         for (const err of result.errs) {
             ns.tprint(`ERROR: ${err}`);
@@ -14,7 +12,6 @@ export async function main(ns: NS) {
     }
 
     const command = new TopLevelCommand(result.ast);
-    ns.tprint(command.inner);
     await command.handle(ns);
 }
 
