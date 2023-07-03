@@ -64,10 +64,12 @@ class StateWeaken extends State {
 
         this.ns.killall(this.host);
 
-        ns.tprint(this.ns.getScriptRam('hgw.js', this.host))
-        const numThreads = Math.floor(this.ns.getServerMaxRam(this.host) / this.ns.getScriptRam('hgw.js', this.host));
+        const numThreads = Math.floor(this.ns.getServerMaxRam(this.host) / 2.00);
         this.ns.tprint(`INFO: Spawning ${numThreads} threads for weaken on host ${this.host}`)
-        const pid = this.ns.exec('hgw.js', this.host, numThreads, `w -t ${numThreads} -i`);
+        const pid = this.ns.exec('hgw.js', this.host, {
+            threads: numThreads,
+            ramOverride: 2.00,
+        }, `w -t ${numThreads} -i`);
         if (!pid) {
             throw "exec failed (possibly not enough ram)"
         }
